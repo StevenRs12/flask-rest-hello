@@ -37,13 +37,57 @@ def sitemap():
     return generate_sitemap(app)
 
 @app.route('/user', methods=['GET'])
-def handle_hello():
+def get_users():
 
-    response_body = {
-        "msg": "Hello, this is your GET /user response "
-    }
+    users=User.query.all();
+    users = list(map(lambda x: x.serialize(), users))
+    # users2 =[user.serialize() for user in users]
+    print('aqui estan los usuarios', users)
 
-    return jsonify(response_body), 200
+    return jsonify(users), 200
+
+@app.route('/user', methods=['POST'])
+def create_user():
+    data=request.json
+
+    if 'email' not in data or 'password' not in data:
+        raise APIException('Falta el correo o la clave', status_code=400)
+
+    new_user=User(
+        email=data['email'],
+        password=data['password'],
+        is_active=data.get('is_active',False),
+    )
+
+    db.session.add(new_user)
+    db.session.commit()
+
+    return jsonify(new_user.serialize()), 201
+
+@app.route('/user/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    user=User.query.get(user_id);
+
+    if not user:
+         raise APIException('el user id no existe', status_code=400)
+    
+    db.session.delete(user);
+    db.session.commit();
+
+    return jsonify({"msj": "Eliminado"}),200
+
+@app.route('/user/<int:user_id>/favorites', methods=['GET'])
+def get_favorites_by_user_id(user_id):
+    print(user_id)
+    user = User.query.get(user_id);
+    if not user:
+        raise APIException('El usuario no exite', status_code=400)
+    
+    favorites_products = [favorite.product.serialize() for favorite in user.favorites]
+
+    return jsonify(favorites_products), 200
+
+
 
 # this only runs if `$ python src/app.py` is executed
 if __name__ == '__main__':
